@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "db:migrate": "node --env-file=.env.local scripts/apply-migration.mjs"
+    "db:migrate": "node --env-file=.env.local scripts/apply-migration.mjs",
+    "test:rls": "node --env-file=.env.local scripts/test-rls.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",
