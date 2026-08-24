@@ -1,0 +1,39 @@
+<svg viewBox="0 0 360 720" xmlns="http://www.w3.org/2000/svg" font-family="Helvetica, Arial, sans-serif">
+  <rect width="360" height="720" rx="28" fill="#F4F1EC"/>
+  <rect x="0" y="0" width="360" height="60" rx="0" fill="#1F2937"/>
+  <text x="180" y="36" text-anchor="middle" fill="#FFFFFF" font-size="16" font-weight="bold">Evidencia Verificada</text>
+
+  <text x="24" y="96" fill="#374151" font-size="13">Solicitud de un prestamista autorizado</text>
+
+  <rect x="20" y="116" width="320" height="220" rx="16" fill="#FFFFFF" stroke="#D1D5DB" stroke-width="1"/>
+  <circle cx="60" cy="160" r="20" fill="#DBEAFE"/>
+  <text x="60" y="166" text-anchor="middle" font-size="16" fill="#1D4ED8">B</text>
+  <text x="92" y="156" fill="#111827" font-size="14" font-weight="bold">Banco Azteca</text>
+  <text x="92" y="174" fill="#6B7280" font-size="11">Prestamista verificado</text>
+
+  <text x="36" y="210" fill="#111827" font-size="13" font-weight="bold">quiere ver:</text>
+  <text x="36" y="232" fill="#374151" font-size="12">3 comprobantes verificados</text>
+  <text x="36" y="250" fill="#374151" font-size="12">de los últimos 30 días</text>
+
+  <rect x="36" y="266" width="288" height="1" fill="#E5E7EB"/>
+  <text x="36" y="290" fill="#047857" font-size="11" font-weight="bold">🔒 Nunca se comparte:</text>
+  <text x="36" y="308" fill="#047857" font-size="11">tu familia, ubicación ni contactos</text>
+  <text x="36" y="324" fill="#6B7280" font-size="10">— esto está bloqueado por diseño, no por promesa</text>
+
+  <rect x="20" y="356" width="320" height="52" rx="12" fill="#111827"/>
+  <text x="180" y="388" text-anchor="middle" fill="#FFFFFF" font-size="14" font-weight="bold">Permitir esta vez</text>
+
+  <rect x="20" y="418" width="320" height="52" rx="12" fill="#FFFFFF" stroke="#9CA3AF" stroke-width="1.5"/>
+  <text x="180" y="450" text-anchor="middle" fill="#374151" font-size="14">No permitir</text>
+
+  <text x="24" y="500" fill="#6B7280" font-size="11">Cada solicitud es de un solo uso.</text>
+  <text x="24" y="518" fill="#6B7280" font-size="11">Puedes revocar cualquier acceso cuando quieras,</text>
+  <text x="24" y="536" fill="#6B7280" font-size="11">desde tu historial de solicitudes.</text>
+
+  <rect x="20" y="568" width="320" height="1" fill="#E5E7EB"/>
+  <text x="24" y="596" fill="#111827" font-size="12" font-weight="bold">Historial de solicitudes</text>
+  <text x="24" y="620" fill="#6B7280" font-size="11">— Financiera Compartamos, hace 4 días — permitido</text>
+  <text x="24" y="640" fill="#6B7280" font-size="11">— Konfío, hace 12 días — no permitido</text>
+
+  <text x="180" y="700" text-anchor="middle" fill="#9CA3AF" font-size="10">DATOS SIMULADOS — MVP Semana 2</text>
+</svg>
