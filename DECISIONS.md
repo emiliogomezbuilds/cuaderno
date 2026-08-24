@@ -32,7 +32,39 @@ Built and deployed. Live at https://cuaderno-beta.vercel.app.
 - `ANTHROPIC_API_KEY` is not set yet — not needed until Feature 5 (LLM
   extraction). Add it in Vercel env vars before starting that feature.
 
-**Tomorrow's first move:** Feature 2 — Google sign-in via Supabase Auth with
-`applicant`/`lender` role selection at signup. Will need Google OAuth
-credentials (Google Cloud Console) wired into Supabase Auth settings before
-any code changes.
+## 2026-08-23 — Feature 2: Google auth with applicant/lender roles
+
+Built and deployed. Live at https://cuaderno-beta.vercel.app/login.
+
+- Added `public.profiles` (`id` references `auth.users`, `role` check
+  `applicant|lender`), RLS on: a user can select/insert only their own row,
+  no update policy — role is claimed once at signup per the MVP scope and
+  isn't editable from the UI.
+- Applied that migration directly over Postgres (`npm run db:migrate --
+  supabase/migrations/0001_profiles.sql`, using `POSTGRES_URL_NON_POOLING`
+  from `.env.local` via `pg`) rather than through `supabase db push`, since
+  there's no `supabase login` set up on this machine. `pg`/`@types/pg` are
+  now devDependencies; future migrations go in `supabase/migrations/` and
+  apply the same way.
+- `/login` → `/auth/callback` (exchanges the OAuth code, then routes to
+  `/onboarding` if no profile row exists yet, else `/{role}`) →
+  `/onboarding` (one-time role picker) → `/applicant` or `/lender`.
+  `/dashboard` is a stable "go to my page" redirector for the homepage link.
+- `src/proxy.ts` — Next.js 16 renamed `middleware.ts` to `proxy.ts`
+  (exported function is now `proxy`, not `middleware`) — refreshes the
+  Supabase session per request and 307s signed-out users away from
+  `/applicant`, `/lender`, `/onboarding`, `/dashboard` to `/login`.
+- Google OAuth needed two manual steps only the account owner could do:
+  creating the OAuth client in Google Cloud Console (redirect URI
+  `https://cnwqrxksktlmgaggeyei.supabase.co/auth/v1/callback`) and pasting
+  its Client ID/Secret into Supabase's Google provider settings. Verified
+  the wiring afterward via Playwright — clicked "Sign in with Google" and
+  confirmed it lands on `accounts.google.com` with the right `client_id`
+  and `redirect_uri` — without entering real credentials, both locally and
+  on the production deploy. A real end-to-end pass (through `/onboarding`
+  to a role page) still needs a human with an actual Google account.
+
+**Tomorrow's first move:** Feature 3 — data model + RLS for
+`evidence_facts`, `pull_requests`, `pull_events` (the tables named in
+PACKET.md, distinct from `profiles`). Acceptance test is cross-user reads
+returning zero rows — write that test alongside the policies, not after.
