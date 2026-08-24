@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "db:migrate": "node --env-file=.env.local scripts/apply-migration.mjs",
-    "test:rls": "node --env-file=.env.local scripts/test-rls.mjs"
+    "test:rls": "node --env-file=.env.local scripts/test-rls.mjs",
+    "test:shadow-clause": "tsx --env-file=.env.local scripts/test-shadow-clause.mts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",
@@ -27,6 +28,7 @@
     "eslint-config-next": "16.3.2",
     "pg": "^8.23.0",
     "tailwindcss": "^4",
+    "tsx": "^4.23.12",
     "typescript": "^5"
   }
 }
