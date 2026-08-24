@@ -94,8 +94,41 @@ deploy still confirmed green.
 - Migrations applied the same way as Feature 2 (`npm run db:migrate --
   supabase/migrations/000N_*.sql` over `POSTGRES_URL_NON_POOLING`).
 
-**Tomorrow's first move:** Feature 4 — schema whitelist validator (Shadow
-Clause enforcement) + `audit_log` table. Needs to run on both the
-`evidence_facts` write path and whatever builds a release packet later, and
-reject (not silently strip) forbidden fields like `family_members` or
-`home_address`.
+## 2026-08-24 — Feature 4: schema whitelist validator + Shadow Clause audit log
+
+Built and deployed (no UI change — this is library + DB infrastructure that
+Features 5 and 7 will call into).
+
+- `src/lib/shadowClause.ts` is the single source of truth:
+  `EVIDENCE_FACT_ALLOWED_FIELDS = [amount, date, source_type,
+  counterparty_masked]`. `checkWhitelist()` rejects — never silently strips
+  — any payload with a key outside that list.
+- Two independent entry points, so a bug in one can't quietly bypass the
+  other: `src/lib/evidence.ts` `insertEvidenceFact()` (write path — Feature
+  5's ingestion must call this, not write to `evidence_facts` directly) and
+  `src/lib/releasePacket.ts` `buildReleasePacket()` (release path —
+  Feature 7's release route will call this before handing anything to a
+  lender). Both check the same whitelist independently rather than one
+  calling the other, matching PACKET.md's "enforced at BOTH ingestion and
+  release, not just one."
+- New `audit_log` table (RLS on, no policies — only the service-role client
+  used internally by `logShadowClauseViolation()` touches it, no UI reads
+  it yet). Every rejection writes a row before throwing
+  `ShadowClauseViolationError`.
+- `scripts/test-shadow-clause.mts` (`npm run test:shadow-clause`) exercises
+  the *actual* `insertEvidenceFact`/`buildReleasePacket` functions, not a
+  reimplementation: a `family_members` field is rejected on the write path,
+  a `home_address` field is rejected on the release path, both with a clear
+  error naming the field, both land in `audit_log`. All 8 checks pass.
+- Needed `tsx` (new devDependency) to run TypeScript test scripts directly;
+  the file is `.mts` (not `.ts`) so tsx treats it as ESM regardless of the
+  project's CJS-leaning `package.json` — a plain `.ts` script hit "Top-level
+  await is currently not supported with the cjs output format."
+
+**Tomorrow's first move:** Feature 5 — simulated evidence ingestion + LLM
+extraction. Applicant pastes fake WhatsApp-style payment text; Claude API
+extracts it into whitelisted fields only, then it goes through
+`insertEvidenceFact()` (already built) — every record gets
+`is_simulated = true` (already the function's default) and a visible
+"SIMULATED DATA" label on screen. `ANTHROPIC_API_KEY` still isn't set in
+Vercel — add it before starting.
