@@ -64,7 +64,38 @@ Built and deployed. Live at https://cuaderno-beta.vercel.app/login.
   on the production deploy. A real end-to-end pass (through `/onboarding`
   to a role page) still needs a human with an actual Google account.
 
-**Tomorrow's first move:** Feature 3 — data model + RLS for
-`evidence_facts`, `pull_requests`, `pull_events` (the tables named in
-PACKET.md, distinct from `profiles`). Acceptance test is cross-user reads
-returning zero rows — write that test alongside the policies, not after.
+## 2026-08-24 — Feature 3: data model + RLS
+
+Built and applied. No UI change this feature (pure data model), production
+deploy still confirmed green.
+
+- `evidence_facts`, `pull_requests`, `pull_events` — RLS on for all three.
+  `evidence_facts`/`pull_requests` insert policies check both
+  `auth.uid() = <owner column>` **and** `profiles.role` matches (applicant /
+  lender respectively). `pull_events` has RLS on but no policies yet —
+  Feature 7's release route will write through the service-role client
+  (guaranteeing exactly one event per consent), and nothing reads it yet.
+- Wrote `scripts/test-rls.mjs` (`npm run test:rls`) to actually execute the
+  acceptance test rather than eyeball it: creates disposable users via the
+  admin API, signs in as each for a real `auth.uid()` session, and checks
+  cross-user reads return zero rows both directions, plus negative-path
+  spoofing attempts.
+- **That negative-path test caught a real gap before it shipped**: the
+  first version of the insert policies only checked
+  `auth.uid() = lender_id` (or `applicant_id`), not the user's actual
+  `profiles.role`. That let any authenticated user — including an
+  applicant — insert a `pull_requests` row naming themselves `lender_id`,
+  since nothing stopped `auth.uid() = lender_id` from being trivially true
+  when a user names *themselves*. Fixed in `0003_role_gated_inserts.sql` by
+  requiring a matching `profiles.role` row via `exists (...)` in the
+  `with check`. Worth remembering for any future insert policy here: `owner
+  column = auth.uid()` alone never proves the user holds the *role* that
+  column implies.
+- Migrations applied the same way as Feature 2 (`npm run db:migrate --
+  supabase/migrations/000N_*.sql` over `POSTGRES_URL_NON_POOLING`).
+
+**Tomorrow's first move:** Feature 4 — schema whitelist validator (Shadow
+Clause enforcement) + `audit_log` table. Needs to run on both the
+`evidence_facts` write path and whatever builds a release packet later, and
+reject (not silently strip) forbidden fields like `family_members` or
+`home_address`.
