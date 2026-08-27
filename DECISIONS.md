@@ -128,39 +128,72 @@ Features 5 and 7 will call into).
 ## 2026-08-27 — Feature 5: evidence ingestion + LLM extraction
 
 Built and deployed. Live at https://cuaderno-beta.vercel.app/applicant
-(sign in, paste text into "Add evidence").
+(sign in, paste text into "Add evidence"). Originally built on Claude, then
+switched to Gemini the same day — see the next entry.
 
-- `src/lib/extraction.ts` calls Claude (`claude-opus-5`, `messages.parse()` +
-  `zodOutputFormat`) with a Zod schema shaped exactly like the Shadow
-  Clause whitelist — the model structurally cannot return a field outside
-  `amount`/`date`/`source_type`/`counterparty_masked`. System prompt also
-  tells it to mask any counterparty identity itself and drop
-  family/geography/contact mentions rather than carry them into output —
-  belt-and-suspenders on top of the schema constraint.
-- Every extracted fact still goes through Feature 4's
-  `insertEvidenceFact()` before touching the DB — the whitelist is checked
-  twice, independently, exactly as PACKET.md specifies. `is_simulated` is
-  the function's default, so every row lands `true` automatically.
+- Every extracted fact goes through Feature 4's `insertEvidenceFact()`
+  before touching the DB — the whitelist is checked twice, independently
+  (once structurally by the extraction schema, once at the write path),
+  exactly as PACKET.md specifies. `is_simulated` is the function's
+  default, so every row lands `true` automatically.
 - `src/app/applicant/actions.ts` (`submitEvidence`) validates the pasted
   text isn't empty and isn't over 4000 chars before it ever reaches the
   LLM prompt (BUILD_PROMPT's security floor #4).
 - `/applicant` now renders the paste-text form plus the signed-in user's
   own `evidence_facts`, each with a visible amber "SIMULATED DATA" badge.
-- **Couldn't test locally this session**: `ANTHROPIC_API_KEY` is marked
-  Sensitive in Vercel, which makes it write-only from the CLI — not even
-  `vercel env pull --environment=production` can retrieve it, regardless
-  of which environment it's enabled for. Considered hand-constructing a
-  `@supabase/ssr` auth cookie to drive a scripted Playwright test against
-  the deployed app without a real Google login; the chunked
-  `base64-`-prefixed cookie format is nontrivial to replicate correctly,
-  and a temporary unauthenticated debug endpoint to bypass that felt like
-  the wrong tradeoff on a security-conscious app. `scripts/test-ingestion.mts`
-  (`npm run test:ingestion`) exists and automates the full acceptance test
-  (1+ rows, all `is_simulated`, only whitelisted keys, a
-  family/geography distractor confirmed absent) — it'll run clean the
-  moment `ANTHROPIC_API_KEY` is available in whatever environment it's
-  run against. Real verification for this feature is a manual pass on the
-  deployed app with a real Google-authenticated applicant account.
+- Couldn't test the LLM call locally either session — the provider API key
+  is Vercel-marked Sensitive/Secret, which makes it write-only from the
+  CLI; not even `vercel env pull --environment=production` can retrieve
+  it. `scripts/test-ingestion.mts` (`npm run test:ingestion`) automates
+  the full acceptance test end-to-end whenever the key *is* reachable
+  locally.
+
+## 2026-08-27 — Bugfix: empty API key, then switch Claude → Gemini
+
+Two rounds of real bugs, both caught before declaring the feature done —
+worth remembering the pattern for next time.
+
+**Round 1 — Claude, empty `ANTHROPIC_API_KEY`.** Live site failed with
+"Could not resolve authentication method" from the Anthropic SDK. Traced
+the SDK source (`readEnv()` trims + falls back to `undefined` on empty
+string) to confirm the shape of the bug, then added a temporary route
+(`/api/debug-env`, presence + length only, never the value) to check the
+actual runtime — `present: true, length: 0`. The stored Vercel value was
+an empty string, not a missing var. Not a code bug at all. User re-added
+the key with the real value; re-verified via the same route
+(`length: 108`, correct `sk-ant-` prefix) before removing it.
+
+**Round 2 — switched providers entirely.** Not paying for Anthropic
+credits, so extraction now calls **Gemini** instead
+(`GEMINI_API_KEY`, already set in Vercel). `src/lib/gemini.ts` replaces
+`src/lib/anthropic.ts`; `src/lib/extraction.ts` now calls
+`ai.models.generateContent()` with `responseMimeType: "application/json"`
++ `responseSchema` (Gemini's own OpenAPI-subset schema, built with the
+`Type` enum) instead of Claude's `messages.parse()` + `zodOutputFormat` —
+same whitelisted shape, same system prompt telling the model to mask
+counterparty identity and drop family/geography/contact mentions.
+`extractEvidenceFacts()`'s signature didn't change, so
+`submitEvidence()` needed no edits. Dropped `@anthropic-ai/sdk` + `zod`
+(only used by the old extraction.ts), added `@google/genai`.
+
+Two things worth knowing for next time:
+- **The Gemini SDK does not auto-read env vars** the way the Anthropic
+  SDK does (`ANTHROPIC_API_KEY` is picked up implicitly) — `GoogleGenAI`
+  throws immediately if `apiKey` isn't passed explicitly in the
+  constructor options. `src/lib/gemini.ts` reads `process.env.GEMINI_API_KEY`
+  itself and throws a clear error if it's falsy.
+- **Given Round 1, didn't trust "present" alone this time** — proactively
+  re-added the temporary diagnostic route, but had it actually *call*
+  `extractEvidenceFacts()` for real (not just check presence/length) before
+  telling the user it was ready. Good thing: it caught a second, unrelated
+  real bug — `gemini-2.5-flash-lite` "is no longer available to new
+  users," per Google's own 404 message, which named the exact replacement
+  (`gemini-3.5-flash-lite`, also free-tier). Fixed and re-verified with
+  the same live call before removing the diagnostic. **Pattern worth
+  reusing**: for any Vercel env var marked Sensitive/Secret (can't be
+  pulled locally via CLI, ever, in any environment), verify with a
+  temporary presence-and-real-call diagnostic route on the deployed app,
+  never trust "the value must be right because it's set."
 
 **Tomorrow's first move:** Feature 6 — lender pull request + consent gate.
 Lender picks one named applicant and submits a `pull_requests` row
