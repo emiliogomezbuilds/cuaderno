@@ -383,3 +383,40 @@ checklist — not yet done, worth doing before calling the MVP finished:**
   app; item 5 (every seeded/demo fact is simulated and labeled) is true
   for the applicant-side "SIMULATED DATA" badge and the lender-side
   packet badge, not yet re-checked since Feature 8's UI changes.
+
+## 2026-08-27 — Test 5 & 6 complete: E2E pass + persona test
+
+Both of PACKET.md's remaining test-plan items done same day as Feature 8.
+
+**Test 6 (persona test)**: ran the *actual* live `ConsentRequestCard`
+markup (not the mockup) through a fresh subagent — no prior context,
+primed only with the Doña Mari persona from PACKET.md §2 — via a
+screenshot. Chose this over deploying a real screenshot behind Vercel's
+Preview SSO wall: rendered the component's real Tailwind classes/copy
+standalone in a local static HTML file (real source, not a
+reimplementation) and screenshotted that instead — avoided touching any
+deployment/security surface for a one-off screenshot. Top finding: an
+unrecognizable lender identity (raw test email + generic icon) was the
+#1 hesitation point — *"esto parece un código, no un negocio"*. Fixed
+same session: `profiles.display_name` (migration 0008), settable at
+onboarding, shown on the consent card instead of email, with an email
+fallback. Findings #2 (English "Applicant" heading + own identity shown
+as raw email) and #3 (vague scope + "bloqueado por diseño" reads as
+jargon, not reassurance) are logged here, not yet fixed — worth a look
+before any real deploy beyond this course MVP.
+
+**Test 5 (mechanical E2E pass)**: user did the full flow live —
+evidence → request → consent → release → revoke — via a third QA
+Preview branch (`qa/e2e-pass-preview`, same pattern as Features 6-8: git
+branch → Preview-only deployment → `/dev-login` → cleanup after). All
+steps worked correctly, no bugs found. Branch, Preview deployment, and
+the disposable lender account (`qa-lender-for-user-...`, display name
+"Financiera Ejemplo") are all cleaned up; `main` was never touched by
+`/dev-login`.
+
+**Where this leaves the MVP**: all 8 BUILD_PROMPT.md features built,
+deployed, and both automated (55+ checks across 5 scripts) and manually
+verified end-to-end. Remaining open items are the two lower-ranked
+persona findings above, plus a full audit pass of the security floor
+checklist (items 4-5) — neither is blocking, both are worth doing before
+any use beyond this course's MVP scope.
