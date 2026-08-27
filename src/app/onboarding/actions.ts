@@ -15,7 +15,9 @@ export async function chooseRole(formData: FormData) {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { error } = await supabase.from("profiles").insert({ id: user.id, role });
+  const { error } = await supabase
+    .from("profiles")
+    .insert({ id: user.id, role, email: user.email });
   if (error) throw new Error(error.message);
 
   redirect(`/${role}`);

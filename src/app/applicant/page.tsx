@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/actions";
 import { EvidenceForm } from "./EvidenceForm";
+import { ConsentRequestCard } from "./ConsentRequestCard";
 
 export default async function ApplicantPage() {
   const supabase = await createClient();
@@ -23,6 +24,20 @@ export default async function ApplicantPage() {
     .select("id, amount, date, source_type, counterparty_masked, is_simulated")
     .order("date", { ascending: false });
 
+  const { data: requests } = await supabase
+    .from("pull_requests")
+    .select("id, lender_id, status, created_at")
+    .order("created_at", { ascending: false });
+
+  const lenderIds = [...new Set((requests ?? []).map((r) => r.lender_id))];
+  const { data: lenderProfiles } = lenderIds.length
+    ? await supabase.from("profiles").select("id, email").in("id", lenderIds)
+    : { data: [] as { id: string; email: string }[] };
+  const lenderEmailById = new Map((lenderProfiles ?? []).map((p) => [p.id, p.email]));
+
+  const pendingRequests = (requests ?? []).filter((r) => r.status === "pending");
+  const decidedRequests = (requests ?? []).filter((r) => r.status !== "pending");
+
   return (
     <div className="flex flex-1 flex-col items-center bg-zinc-50 font-sans dark:bg-black">
       <main className="flex w-full max-w-xl flex-col items-center gap-8 px-8 py-16">
@@ -32,6 +47,21 @@ export default async function ApplicantPage() {
           </h1>
           <p className="text-zinc-600 dark:text-zinc-400">{user.email}</p>
         </div>
+
+        {pendingRequests.length > 0 && (
+          <section className="flex w-full flex-col gap-4">
+            <h2 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">
+              Solicitud de un prestamista autorizado
+            </h2>
+            {pendingRequests.map((r) => (
+              <ConsentRequestCard
+                key={r.id}
+                id={r.id}
+                lenderEmail={lenderEmailById.get(r.lender_id) ?? r.lender_id}
+              />
+            ))}
+          </section>
+        )}
 
         <section className="w-full rounded-xl border border-black/[.08] p-5 dark:border-white/[.145]">
           <h2 className="mb-3 text-sm font-semibold text-zinc-800 dark:text-zinc-200">
@@ -72,6 +102,35 @@ export default async function ApplicantPage() {
             <p className="text-sm text-zinc-500 dark:text-zinc-400">No evidence yet.</p>
           )}
         </section>
+
+        {decidedRequests.length > 0 && (
+          <section className="w-full">
+            <h2 className="mb-3 text-sm font-semibold text-zinc-800 dark:text-zinc-200">
+              Historial de solicitudes
+            </h2>
+            <ul className="flex flex-col gap-2 text-sm">
+              {decidedRequests.map((r) => (
+                <li
+                  key={r.id}
+                  className="flex items-center justify-between rounded-lg border border-black/[.08] px-4 py-3 dark:border-white/[.145]"
+                >
+                  <span className="text-zinc-900 dark:text-zinc-100">
+                    {lenderEmailById.get(r.lender_id) ?? r.lender_id}
+                  </span>
+                  <span
+                    className={
+                      r.status === "consented"
+                        ? "text-green-700 dark:text-green-400"
+                        : "text-red-600 dark:text-red-400"
+                    }
+                  >
+                    {r.status === "consented" ? "permitido" : "no permitido"}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         <form action={signOut}>
           <button

@@ -43,10 +43,11 @@ try {
   // --- evidence_facts: applicant isolation ---
   const applicantA = await createTestUser("applicant-a");
   const applicantB = await createTestUser("applicant-b");
-  await admin.from("profiles").insert([
-    { id: applicantA.id, role: "applicant" },
-    { id: applicantB.id, role: "applicant" },
+  const { error: profileErrA } = await admin.from("profiles").insert([
+    { id: applicantA.id, role: "applicant", email: applicantA.email },
+    { id: applicantB.id, role: "applicant", email: applicantB.email },
   ]);
+  if (profileErrA) throw new Error(`profile insert: ${profileErrA.message}`);
 
   const asA = await sessionFor(applicantA.email);
   const { error: insertErr } = await asA.from("evidence_facts").insert({
@@ -68,10 +69,11 @@ try {
   // --- pull_requests: lender isolation ---
   const lenderA = await createTestUser("lender-a");
   const lenderB = await createTestUser("lender-b");
-  await admin.from("profiles").insert([
-    { id: lenderA.id, role: "lender" },
-    { id: lenderB.id, role: "lender" },
+  const { error: profileErrL } = await admin.from("profiles").insert([
+    { id: lenderA.id, role: "lender", email: lenderA.email },
+    { id: lenderB.id, role: "lender", email: lenderB.email },
   ]);
+  if (profileErrL) throw new Error(`profile insert: ${profileErrL.message}`);
 
   const asLenderA = await sessionFor(lenderA.email);
   const { error: prInsertErr } = await asLenderA.from("pull_requests").insert({

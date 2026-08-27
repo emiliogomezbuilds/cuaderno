@@ -48,7 +48,7 @@ try {
 
   const { error: profileErr } = await admin
     .from("profiles")
-    .insert({ id: applicantId, role: "applicant" });
+    .insert({ id: applicantId, role: "applicant", email });
   if (profileErr) throw new Error(profileErr.message);
 
   const asApplicant = createClient(url, anonKey, { auth: { persistSession: false } });
