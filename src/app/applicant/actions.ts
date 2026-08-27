@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { extractEvidenceFacts } from "@/lib/extraction";
 import { insertEvidenceFact } from "@/lib/evidence";
 import { ShadowClauseViolationError } from "@/lib/shadowClause";
-import { respondToPullRequest } from "@/lib/pullRequests";
+import { respondToPullRequest, revokePullRequest } from "@/lib/pullRequests";
 
 const MAX_EVIDENCE_TEXT_LENGTH = 4000;
 
@@ -85,5 +85,21 @@ export async function respondToRequest(formData: FormData): Promise<void> {
   }
 
   await respondToPullRequest(supabase, requestId, decision);
+  revalidatePath("/applicant");
+}
+
+export async function revokeAccess(formData: FormData): Promise<void> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const requestId = formData.get("request_id");
+  if (typeof requestId !== "string") {
+    throw new Error("Invalid request");
+  }
+
+  await revokePullRequest(supabase, requestId);
   revalidatePath("/applicant");
 }

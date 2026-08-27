@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/actions";
 import { EvidenceForm } from "./EvidenceForm";
 import { ConsentRequestCard } from "./ConsentRequestCard";
+import { revokeAccess } from "./actions";
 
 export default async function ApplicantPage() {
   const supabase = await createClient();
@@ -26,7 +27,7 @@ export default async function ApplicantPage() {
 
   const { data: requests } = await supabase
     .from("pull_requests")
-    .select("id, lender_id, status, created_at")
+    .select("id, lender_id, status, revoked_at, created_at")
     .order("created_at", { ascending: false });
 
   const lenderIds = [...new Set((requests ?? []).map((r) => r.lender_id))];
@@ -109,25 +110,47 @@ export default async function ApplicantPage() {
               Historial de solicitudes
             </h2>
             <ul className="flex flex-col gap-2 text-sm">
-              {decidedRequests.map((r) => (
-                <li
-                  key={r.id}
-                  className="flex items-center justify-between rounded-lg border border-black/[.08] px-4 py-3 dark:border-white/[.145]"
-                >
-                  <span className="text-zinc-900 dark:text-zinc-100">
-                    {lenderEmailById.get(r.lender_id) ?? r.lender_id}
-                  </span>
-                  <span
-                    className={
-                      r.status === "consented"
-                        ? "text-green-700 dark:text-green-400"
-                        : "text-red-600 dark:text-red-400"
-                    }
+              {decidedRequests.map((r) => {
+                const isActiveConsent = r.status === "consented" && !r.revoked_at;
+                return (
+                  <li
+                    key={r.id}
+                    className="flex items-center justify-between gap-3 rounded-lg border border-black/[.08] px-4 py-3 dark:border-white/[.145]"
                   >
-                    {r.status === "consented" ? "permitido" : "no permitido"}
-                  </span>
-                </li>
-              ))}
+                    <span className="text-zinc-900 dark:text-zinc-100">
+                      {lenderEmailById.get(r.lender_id) ?? r.lender_id}
+                    </span>
+                    <div className="flex shrink-0 items-center gap-3">
+                      <span
+                        className={
+                          r.status === "denied"
+                            ? "text-red-600 dark:text-red-400"
+                            : r.revoked_at
+                              ? "text-zinc-500 dark:text-zinc-400"
+                              : "text-green-700 dark:text-green-400"
+                        }
+                      >
+                        {r.status === "denied"
+                          ? "no permitido"
+                          : r.revoked_at
+                            ? "revocado"
+                            : "permitido"}
+                      </span>
+                      {isActiveConsent && (
+                        <form action={revokeAccess}>
+                          <input type="hidden" name="request_id" value={r.id} />
+                          <button
+                            type="submit"
+                            className="text-xs text-zinc-500 underline transition-colors hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
+                          >
+                            Revocar acceso
+                          </button>
+                        </form>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           </section>
         )}

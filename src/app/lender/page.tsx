@@ -8,6 +8,7 @@ const STATUS_STYLES: Record<string, string> = {
   pending: "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300",
   consented: "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300",
   denied: "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300",
+  revoked: "bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-400",
 };
 
 export default async function LenderPage() {
@@ -27,7 +28,7 @@ export default async function LenderPage() {
 
   const { data: requests } = await supabase
     .from("pull_requests")
-    .select("id, applicant_id, status, created_at")
+    .select("id, applicant_id, status, revoked_at, created_at")
     .order("created_at", { ascending: false });
 
   const applicantIds = [...new Set((requests ?? []).map((r) => r.applicant_id))];
@@ -68,6 +69,7 @@ export default async function LenderPage() {
             <ul className="flex flex-col gap-2">
               {requests.map((r) => {
                 const packet = packetByRequestId.get(r.id);
+                const displayStatus = r.revoked_at ? "revoked" : r.status;
                 return (
                   <li
                     key={r.id}
@@ -78,12 +80,12 @@ export default async function LenderPage() {
                         {emailById.get(r.applicant_id) ?? r.applicant_id}
                       </span>
                       <span
-                        className={`shrink-0 rounded-full px-2 py-1 text-xs font-medium ${STATUS_STYLES[r.status]}`}
+                        className={`shrink-0 rounded-full px-2 py-1 text-xs font-medium ${STATUS_STYLES[displayStatus]}`}
                       >
-                        {r.status}
+                        {displayStatus}
                       </span>
                     </div>
-                    {r.status === "consented" && packet && (
+                    {displayStatus === "consented" && packet && (
                       <div className="mt-3 flex flex-col gap-1.5 border-t border-black/[.08] pt-3 dark:border-white/[.145]">
                         <span className="w-fit rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
                           SIMULATED DATA

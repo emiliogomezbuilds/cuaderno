@@ -12,7 +12,8 @@
     "test:shadow-clause": "tsx --env-file=.env.local scripts/test-shadow-clause.mts",
     "test:ingestion": "tsx --env-file=.env.local scripts/test-ingestion.mts",
     "test:consent-gate": "tsx --env-file=.env.local scripts/test-consent-gate.mts",
-    "test:release": "tsx --env-file=.env.local scripts/test-release.mts"
+    "test:release": "tsx --env-file=.env.local scripts/test-release.mts",
+    "test:revoke": "tsx --env-file=.env.local scripts/test-revoke.mts"
   },
   "dependencies": {
     "@google/genai": "^2.19.0",

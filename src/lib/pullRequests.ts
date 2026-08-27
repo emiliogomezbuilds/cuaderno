@@ -70,6 +70,27 @@ export async function respondToPullRequest(
   return data;
 }
 
+// RLS (0007_revoke_access.sql) restricts this to the applicant's own
+// consented, not-yet-revoked grants. Deliberately does NOT delete the
+// pull_events row — the applicant's own SELECT policy still shows it (full
+// history), only the lender's SELECT policy is revoked-gated, so "stop
+// showing data after revoke" happens at the RLS layer, not by mutating or
+// deleting the release record itself.
+export async function revokePullRequest(supabase: SupabaseClient, requestId: string) {
+  const { data, error } = await supabase
+    .from("pull_requests")
+    .update({ revoked_at: new Date().toISOString() })
+    .eq("id", requestId)
+    .select("id, status, revoked_at")
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+  if (!data) {
+    throw new Error("Request not found, not yours, or not eligible for revoke.");
+  }
+  return data;
+}
+
 // The read runs on the applicant's own session (RLS: they can only ever
 // select their own evidence_facts, which is exactly the actor who's
 // allowed to trigger a release). Only whitelisted columns are selected —
