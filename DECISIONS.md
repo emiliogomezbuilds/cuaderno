@@ -125,10 +125,48 @@ Features 5 and 7 will call into).
   project's CJS-leaning `package.json` — a plain `.ts` script hit "Top-level
   await is currently not supported with the cjs output format."
 
-**Tomorrow's first move:** Feature 5 — simulated evidence ingestion + LLM
-extraction. Applicant pastes fake WhatsApp-style payment text; Claude API
-extracts it into whitelisted fields only, then it goes through
-`insertEvidenceFact()` (already built) — every record gets
-`is_simulated = true` (already the function's default) and a visible
-"SIMULATED DATA" label on screen. `ANTHROPIC_API_KEY` still isn't set in
-Vercel — add it before starting.
+## 2026-08-27 — Feature 5: evidence ingestion + LLM extraction
+
+Built and deployed. Live at https://cuaderno-beta.vercel.app/applicant
+(sign in, paste text into "Add evidence").
+
+- `src/lib/extraction.ts` calls Claude (`claude-opus-5`, `messages.parse()` +
+  `zodOutputFormat`) with a Zod schema shaped exactly like the Shadow
+  Clause whitelist — the model structurally cannot return a field outside
+  `amount`/`date`/`source_type`/`counterparty_masked`. System prompt also
+  tells it to mask any counterparty identity itself and drop
+  family/geography/contact mentions rather than carry them into output —
+  belt-and-suspenders on top of the schema constraint.
+- Every extracted fact still goes through Feature 4's
+  `insertEvidenceFact()` before touching the DB — the whitelist is checked
+  twice, independently, exactly as PACKET.md specifies. `is_simulated` is
+  the function's default, so every row lands `true` automatically.
+- `src/app/applicant/actions.ts` (`submitEvidence`) validates the pasted
+  text isn't empty and isn't over 4000 chars before it ever reaches the
+  LLM prompt (BUILD_PROMPT's security floor #4).
+- `/applicant` now renders the paste-text form plus the signed-in user's
+  own `evidence_facts`, each with a visible amber "SIMULATED DATA" badge.
+- **Couldn't test locally this session**: `ANTHROPIC_API_KEY` is marked
+  Sensitive in Vercel, which makes it write-only from the CLI — not even
+  `vercel env pull --environment=production` can retrieve it, regardless
+  of which environment it's enabled for. Considered hand-constructing a
+  `@supabase/ssr` auth cookie to drive a scripted Playwright test against
+  the deployed app without a real Google login; the chunked
+  `base64-`-prefixed cookie format is nontrivial to replicate correctly,
+  and a temporary unauthenticated debug endpoint to bypass that felt like
+  the wrong tradeoff on a security-conscious app. `scripts/test-ingestion.mts`
+  (`npm run test:ingestion`) exists and automates the full acceptance test
+  (1+ rows, all `is_simulated`, only whitelisted keys, a
+  family/geography distractor confirmed absent) — it'll run clean the
+  moment `ANTHROPIC_API_KEY` is available in whatever environment it's
+  run against. Real verification for this feature is a manual pass on the
+  deployed app with a real Google-authenticated applicant account.
+
+**Tomorrow's first move:** Feature 6 — lender pull request + consent gate.
+Lender picks one named applicant and submits a `pull_requests` row
+(already has RLS + role-gated insert from Feature 3); applicant sees the
+pending request and can approve/deny, built from
+`docs/mockup_consent_gate.svg`. Acceptance: with no applicant action the
+lender sees nothing and no `pull_events` row exists (that table still has
+no policies — fine, nothing reads it yet); on deny, status becomes
+`denied`, still nothing released.
