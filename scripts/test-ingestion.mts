@@ -1,7 +1,7 @@
 // Verifies Feature 5's acceptance test: pasting sample evidence text
 // produces 1+ rows in evidence_facts, each is_simulated, with only
-// whitelisted fields populated. Calls the real Claude API — requires
-// ANTHROPIC_API_KEY locally (not pulled by default; see DECISIONS.md).
+// whitelisted fields populated. Calls the real Gemini API — requires
+// GEMINI_API_KEY locally (see DECISIONS.md for how to pull it).
 import { createClient } from "@supabase/supabase-js";
 import { extractEvidenceFacts } from "../src/lib/extraction";
 import { insertEvidenceFact } from "../src/lib/evidence";
@@ -10,10 +10,10 @@ const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
-if (!process.env.ANTHROPIC_API_KEY) {
+if (!process.env.GEMINI_API_KEY) {
   console.error(
-    "ANTHROPIC_API_KEY is not set locally. Pull it from Vercel (Development " +
-      "environment) or run this against an environment where it's set.",
+    "GEMINI_API_KEY is not set locally. Pull it from Vercel or run this " +
+      "against an environment where it's set.",
   );
   process.exit(1);
 }
