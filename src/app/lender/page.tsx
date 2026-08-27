@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/actions";
 import { RequestPullForm } from "./RequestPullForm";
+import type { EvidenceFactPayload } from "@/lib/evidence";
 
 const STATUS_STYLES: Record<string, string> = {
   pending: "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300",
@@ -35,6 +36,13 @@ export default async function LenderPage() {
     : { data: [] as { id: string; email: string }[] };
   const emailById = new Map((applicantProfiles ?? []).map((p) => [p.id, p.email]));
 
+  const { data: events } = await supabase
+    .from("pull_events")
+    .select("pull_request_id, packet");
+  const packetByRequestId = new Map(
+    (events ?? []).map((e) => [e.pull_request_id, e.packet as EvidenceFactPayload[]]),
+  );
+
   return (
     <div className="flex flex-1 flex-col items-center bg-zinc-50 font-sans dark:bg-black">
       <main className="flex w-full max-w-xl flex-col items-center gap-8 px-8 py-16">
@@ -58,21 +66,48 @@ export default async function LenderPage() {
           </h2>
           {requests && requests.length > 0 ? (
             <ul className="flex flex-col gap-2">
-              {requests.map((r) => (
-                <li
-                  key={r.id}
-                  className="flex items-center justify-between gap-3 rounded-lg border border-black/[.08] px-4 py-3 text-sm dark:border-white/[.145]"
-                >
-                  <span className="text-zinc-900 dark:text-zinc-100">
-                    {emailById.get(r.applicant_id) ?? r.applicant_id}
-                  </span>
-                  <span
-                    className={`shrink-0 rounded-full px-2 py-1 text-xs font-medium ${STATUS_STYLES[r.status]}`}
+              {requests.map((r) => {
+                const packet = packetByRequestId.get(r.id);
+                return (
+                  <li
+                    key={r.id}
+                    className="rounded-lg border border-black/[.08] px-4 py-3 text-sm dark:border-white/[.145]"
                   >
-                    {r.status}
-                  </span>
-                </li>
-              ))}
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-zinc-900 dark:text-zinc-100">
+                        {emailById.get(r.applicant_id) ?? r.applicant_id}
+                      </span>
+                      <span
+                        className={`shrink-0 rounded-full px-2 py-1 text-xs font-medium ${STATUS_STYLES[r.status]}`}
+                      >
+                        {r.status}
+                      </span>
+                    </div>
+                    {r.status === "consented" && packet && (
+                      <div className="mt-3 flex flex-col gap-1.5 border-t border-black/[.08] pt-3 dark:border-white/[.145]">
+                        <span className="w-fit rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
+                          SIMULATED DATA
+                        </span>
+                        {packet.length > 0 ? (
+                          <ul className="flex flex-col gap-1">
+                            {packet.map((fact, i) => (
+                              <li key={i} className="text-xs text-zinc-600 dark:text-zinc-400">
+                                ${Number(fact.amount).toLocaleString()} · {fact.date} ·{" "}
+                                {fact.source_type}
+                                {fact.counterparty_masked ? ` · ${fact.counterparty_masked}` : ""}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                            No evidence facts were on file at the time of release.
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           ) : (
             <p className="text-sm text-zinc-500 dark:text-zinc-400">No requests yet.</p>

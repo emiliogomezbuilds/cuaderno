@@ -11,7 +11,8 @@
     "test:rls": "node --env-file=.env.local scripts/test-rls.mjs",
     "test:shadow-clause": "tsx --env-file=.env.local scripts/test-shadow-clause.mts",
     "test:ingestion": "tsx --env-file=.env.local scripts/test-ingestion.mts",
-    "test:consent-gate": "tsx --env-file=.env.local scripts/test-consent-gate.mts"
+    "test:consent-gate": "tsx --env-file=.env.local scripts/test-consent-gate.mts",
+    "test:release": "tsx --env-file=.env.local scripts/test-release.mts"
   },
   "dependencies": {
     "@google/genai": "^2.19.0",
