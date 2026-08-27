@@ -9,14 +9,17 @@
     "lint": "eslint",
     "db:migrate": "node --env-file=.env.local scripts/apply-migration.mjs",
     "test:rls": "node --env-file=.env.local scripts/test-rls.mjs",
-    "test:shadow-clause": "tsx --env-file=.env.local scripts/test-shadow-clause.mts"
+    "test:shadow-clause": "tsx --env-file=.env.local scripts/test-shadow-clause.mts",
+    "test:ingestion": "tsx --env-file=.env.local scripts/test-ingestion.mts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.121.0",
     "@supabase/ssr": "^0.12.4",
     "@supabase/supabase-js": "^2.112.3",
     "next": "16.3.2",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

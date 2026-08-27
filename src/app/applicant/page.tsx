@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/actions";
+import { EvidenceForm } from "./EvidenceForm";
 
 export default async function ApplicantPage() {
   const supabase = await createClient();
@@ -17,13 +18,61 @@ export default async function ApplicantPage() {
   if (!profile) redirect("/onboarding");
   if (profile.role !== "applicant") redirect(`/${profile.role}`);
 
+  const { data: facts } = await supabase
+    .from("evidence_facts")
+    .select("id, amount, date, source_type, counterparty_masked, is_simulated")
+    .order("date", { ascending: false });
+
   return (
-    <div className="flex flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex w-full max-w-sm flex-col items-center gap-6 px-8 py-24 text-center">
-        <h1 className="text-2xl font-semibold tracking-tight text-black dark:text-zinc-50">
-          Applicant
-        </h1>
-        <p className="text-zinc-600 dark:text-zinc-400">{user.email}</p>
+    <div className="flex flex-1 flex-col items-center bg-zinc-50 font-sans dark:bg-black">
+      <main className="flex w-full max-w-xl flex-col items-center gap-8 px-8 py-16">
+        <div className="flex flex-col items-center gap-2 text-center">
+          <h1 className="text-2xl font-semibold tracking-tight text-black dark:text-zinc-50">
+            Applicant
+          </h1>
+          <p className="text-zinc-600 dark:text-zinc-400">{user.email}</p>
+        </div>
+
+        <section className="w-full rounded-xl border border-black/[.08] p-5 dark:border-white/[.145]">
+          <h2 className="mb-3 text-sm font-semibold text-zinc-800 dark:text-zinc-200">
+            Add evidence
+          </h2>
+          <EvidenceForm />
+        </section>
+
+        <section className="w-full">
+          <h2 className="mb-3 text-sm font-semibold text-zinc-800 dark:text-zinc-200">
+            Your evidence
+          </h2>
+          {facts && facts.length > 0 ? (
+            <ul className="flex flex-col gap-2">
+              {facts.map((fact) => (
+                <li
+                  key={fact.id}
+                  className="flex items-center justify-between gap-3 rounded-lg border border-black/[.08] px-4 py-3 text-sm dark:border-white/[.145]"
+                >
+                  <div>
+                    <p className="font-medium text-zinc-900 dark:text-zinc-100">
+                      ${Number(fact.amount).toLocaleString()} · {fact.date}
+                    </p>
+                    <p className="text-zinc-600 dark:text-zinc-400">
+                      {fact.source_type}
+                      {fact.counterparty_masked ? ` · ${fact.counterparty_masked}` : ""}
+                    </p>
+                  </div>
+                  {fact.is_simulated && (
+                    <span className="shrink-0 rounded-full bg-amber-100 px-2 py-1 text-xs font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
+                      SIMULATED DATA
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">No evidence yet.</p>
+          )}
+        </section>
+
         <form action={signOut}>
           <button
             type="submit"
