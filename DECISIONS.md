@@ -195,11 +195,61 @@ Two things worth knowing for next time:
   temporary presence-and-real-call diagnostic route on the deployed app,
   never trust "the value must be right because it's set."
 
-**Tomorrow's first move:** Feature 6 — lender pull request + consent gate.
-Lender picks one named applicant and submits a `pull_requests` row
-(already has RLS + role-gated insert from Feature 3); applicant sees the
-pending request and can approve/deny, built from
-`docs/mockup_consent_gate.svg`. Acceptance: with no applicant action the
-lender sees nothing and no `pull_events` row exists (that table still has
-no policies — fine, nothing reads it yet); on deny, status becomes
-`denied`, still nothing released.
+## 2026-08-27 — Feature 6: lender pull request + consent gate
+
+Built and deployed. Live at https://cuaderno-beta.vercel.app/lender (send
+a request by email) and /applicant (approve/deny as a consent card).
+
+- `profiles.email` (new column, backfilled from `auth.users` for the real
+  profile already in the table) — a lender names an applicant by typing
+  their email, since there's no public directory. Onboarding now writes
+  it going forward.
+- Lookup runs on the **admin client** inside `createPullRequest()`
+  (`src/lib/pullRequests.ts`) — bypasses RLS just for the email→id
+  lookup, so a lender gains no broader read access to `profiles` — then
+  the actual insert runs on the **lender's own session**, so Feature 3's
+  role-gated RLS policy still governs who's allowed to create the row.
+- New `pull_requests` UPDATE policy: applicant can respond to their own
+  row only while `status = 'pending'`, and only into
+  `consented`/`denied` — can't flip back to pending, can't touch someone
+  else's row, can't re-decide an already-decided one. All enforced at the
+  RLS layer, not just in application code.
+- Two narrow, symmetric SELECT policies on `profiles` so each side can see
+  who they're dealing with without a general directory: applicant sees a
+  lender's profile only if that lender has a `pull_requests` row naming
+  them, and vice versa.
+- `/applicant`'s pending-request UI follows `docs/mockup_consent_gate.svg`
+  closely (Spanish copy, lender identity card, the Shadow Clause
+  reassurance line, "Permitir esta vez" / "No permitir"), with a
+  "Historial de solicitudes" list of already-decided requests below it —
+  the rest of the app stays in English, this screen follows the mockup's
+  language since it's explicitly Doña Mari-facing.
+- `scripts/test-consent-gate.mts` (`npm run test:consent-gate`) automates
+  the acceptance test against the real `pullRequests.ts` functions: no
+  `pull_events` row exists before any applicant action, deny sets status
+  to `denied` with still no `pull_events` row, a different applicant can't
+  respond to someone else's request, an already-decided request can't be
+  re-decided. 10 checks, all passing.
+- **Regression catch**: adding `profiles.email NOT NULL` broke three
+  earlier test scripts (`test-rls.mjs`, `test-shadow-clause.mts`,
+  `test-ingestion.mts`) — none of them passed `email` when creating test
+  profiles. Caught by rerunning the full suite before shipping, not after.
+  Worth remembering: a schema change in one feature's migration can break
+  *previous* features' test fixtures, not just new code — always rerun the
+  full regression suite, not just the new feature's test.
+- **Not manually click-tested this session** — unlike every prior feature,
+  this one is inherently two-sided (a lender and an applicant acting on
+  each other), so a real walkthrough needs two distinct Google accounts.
+  Automated coverage against the real shared functions is thorough (10
+  checks including negative paths), but a human pass with two real
+  accounts is still worth doing before calling this fully done.
+
+**Tomorrow's first move:** Feature 7 — release + fee-event logging. On
+consent, release the whitelisted fact packet to the lender (via Feature
+4's `buildReleasePacket()`, already built) and write exactly one
+`pull_events` row per `pull_request_id` — re-requesting without a new
+consent must not create a second release or a second `pull_events` row.
+This is also where `pull_events` finally gets RLS policies (currently
+deny-all) and a real INSERT path (service-role, to guarantee the
+exactly-once guarantee server-side rather than trusting client-side RLS
+alone).
