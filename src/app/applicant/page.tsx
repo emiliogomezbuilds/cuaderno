@@ -32,9 +32,12 @@ export default async function ApplicantPage() {
 
   const lenderIds = [...new Set((requests ?? []).map((r) => r.lender_id))];
   const { data: lenderProfiles } = lenderIds.length
-    ? await supabase.from("profiles").select("id, email").in("id", lenderIds)
-    : { data: [] as { id: string; email: string }[] };
+    ? await supabase.from("profiles").select("id, email, display_name").in("id", lenderIds)
+    : { data: [] as { id: string; email: string; display_name: string | null }[] };
   const lenderEmailById = new Map((lenderProfiles ?? []).map((p) => [p.id, p.email]));
+  const lenderDisplayNameById = new Map(
+    (lenderProfiles ?? []).map((p) => [p.id, p.display_name]),
+  );
 
   const pendingRequests = (requests ?? []).filter((r) => r.status === "pending");
   const decidedRequests = (requests ?? []).filter((r) => r.status !== "pending");
@@ -59,6 +62,7 @@ export default async function ApplicantPage() {
                 key={r.id}
                 id={r.id}
                 lenderEmail={lenderEmailById.get(r.lender_id) ?? r.lender_id}
+                lenderDisplayName={lenderDisplayNameById.get(r.lender_id) ?? null}
               />
             ))}
           </section>
@@ -118,7 +122,9 @@ export default async function ApplicantPage() {
                     className="flex items-center justify-between gap-3 rounded-lg border border-black/[.08] px-4 py-3 dark:border-white/[.145]"
                   >
                     <span className="text-zinc-900 dark:text-zinc-100">
-                      {lenderEmailById.get(r.lender_id) ?? r.lender_id}
+                      {lenderDisplayNameById.get(r.lender_id) ??
+                        lenderEmailById.get(r.lender_id) ??
+                        r.lender_id}
                     </span>
                     <div className="flex shrink-0 items-center gap-3">
                       <span

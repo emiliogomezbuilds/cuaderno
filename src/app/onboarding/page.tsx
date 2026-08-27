@@ -35,14 +35,32 @@ export default async function OnboardingPage() {
           >
             I&apos;m an applicant
           </button>
-          <button
-            type="submit"
-            name="role"
-            value="lender"
-            className="w-full rounded-full border border-solid border-black/[.08] px-5 py-3 text-sm font-medium transition-colors hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a]"
-          >
-            I&apos;m a lender
-          </button>
+
+          <div className="my-1 flex w-full flex-col gap-2 rounded-xl border border-black/[.08] p-3 text-left dark:border-white/[.145]">
+            <label
+              htmlFor="display_name"
+              className="text-xs text-zinc-600 dark:text-zinc-400"
+            >
+              Institution name (lenders only — shown to applicants instead of
+              your email on the consent screen)
+            </label>
+            <input
+              id="display_name"
+              name="display_name"
+              type="text"
+              maxLength={80}
+              placeholder="e.g. Banco Azteca"
+              className="w-full rounded-lg border border-black/[.08] bg-white p-2 text-sm text-zinc-900 dark:border-white/[.145] dark:bg-black dark:text-zinc-100"
+            />
+            <button
+              type="submit"
+              name="role"
+              value="lender"
+              className="w-full rounded-full border border-solid border-black/[.08] px-5 py-3 text-sm font-medium transition-colors hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a]"
+            >
+              I&apos;m a lender
+            </button>
+          </div>
         </form>
       </main>
     </div>

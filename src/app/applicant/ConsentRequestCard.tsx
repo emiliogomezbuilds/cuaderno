@@ -3,18 +3,22 @@ import { respondToRequest } from "./actions";
 export function ConsentRequestCard({
   id,
   lenderEmail,
+  lenderDisplayName,
 }: {
   id: string;
   lenderEmail: string;
+  lenderDisplayName: string | null;
 }) {
+  const identity = lenderDisplayName ?? lenderEmail;
+
   return (
     <div className="w-full rounded-2xl border border-zinc-300 bg-white p-5 text-left dark:border-zinc-700 dark:bg-zinc-950">
       <div className="mb-3 flex items-center gap-3">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
-          {lenderEmail.charAt(0).toUpperCase()}
+          {identity.charAt(0).toUpperCase()}
         </div>
         <div>
-          <p className="font-semibold text-zinc-900 dark:text-zinc-100">{lenderEmail}</p>
+          <p className="font-semibold text-zinc-900 dark:text-zinc-100">{identity}</p>
           <p className="text-xs text-zinc-500 dark:text-zinc-400">Prestamista verificado</p>
         </div>
       </div>
