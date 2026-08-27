@@ -282,12 +282,55 @@ How the disposable account got tested, worth remembering:
   GitHub. `/dev-login` was never merged into `main` and never touched
   production.
 
-**Tomorrow's first move:** Feature 7 — release + fee-event logging. On
-consent, release the whitelisted fact packet to the lender (via Feature
-4's `buildReleasePacket()`, already built) and write exactly one
-`pull_events` row per `pull_request_id` — re-requesting without a new
-consent must not create a second release or a second `pull_events` row.
-This is also where `pull_events` finally gets RLS policies (currently
-deny-all) and a real INSERT path (service-role, to guarantee the
-exactly-once guarantee server-side rather than trusting client-side RLS
-alone).
+## 2026-08-27 — Feature 7: release + fee-event logging
+
+Built and deployed (second deploy per BUILD_PROMPT's commit plan, though in
+practice every push has been auto-deploying since Feature 1). Live: consent
+on `/applicant` now releases the packet, visible inline on `/lender`.
+
+- `pull_events.packet` (jsonb) is a **snapshot at the moment of
+  release**, not a live query — deliberate: consenting to release
+  "current facts" shouldn't retroactively expose facts the applicant
+  adds after consenting. This column doubles as the lender-visible
+  record of exactly what was released.
+- `unique(pull_request_id)` on `pull_events` — belt-and-suspenders on
+  top of Feature 6's "pending → decided exactly once" RLS guard. Even
+  under a bug or a race, the database itself refuses a second event for
+  the same request, not just the application logic.
+- `respondToPullRequest()` releases inline when the decision is
+  `consented`: reads the applicant's own `evidence_facts` on their own
+  session (only whitelisted columns selected — deliberately never
+  `select("*")`, since `buildReleasePacket()` would correctly reject
+  `id`/`applicant_id`/`is_simulated` as "non-whitelisted" if it slipped
+  through), then inserts `pull_events` via the admin client (no
+  INSERT policy exists for anyone else). Because the status transition
+  can only succeed once per request, there's no separate path that
+  could double-release — didn't need a Postgres function/transaction to
+  get the exactly-once guarantee.
+- **Known small gap, documented not fixed**: the status update and the
+  `pull_events` insert are two separate calls (different Supabase
+  clients — user session, then admin), not one atomic transaction. If
+  `buildReleasePacket()` somehow threw after the status update
+  committed (shouldn't happen — `evidence_facts` only ever contains
+  whitelisted columns by construction from Features 4/5), the request
+  would be left `consented` with no release recorded. Accepted for MVP
+  scope rather than adding a `plpgsql` RPC; would revisit before any
+  real-money version.
+- `scripts/test-release.mts` (`npm run test:release`) automates the
+  acceptance test against the real functions: 0 `pull_events` rows
+  before consent → exactly 1 after → still 1 after a blocked
+  re-consent attempt → a genuinely *new* pull request produces its own
+  separate row. 13 checks, all passing. Full regression suite (RLS,
+  Shadow Clause, consent gate) reruns clean.
+
+**Tomorrow's first move:** Feature 8 — revoke access. Applicant can
+revoke a previously consented grant; any lender UI polling that grant
+must stop showing data after revoke. This needs a new status (or a
+separate `revoked_at` column) on `pull_requests`/`pull_events` — the
+mockup's "Puedes revocar cualquier acceso cuando quieras, desde tu
+historial de solicitudes" line was deliberately left out of Feature 6's
+consent card since revoke didn't exist yet; this is where it becomes
+true. The `/lender` packet display (`packetByRequestId` in
+`src/app/lender/page.tsx`) will need to stop rendering a packet once its
+request is revoked — check live status on every read, not just at
+release time.
