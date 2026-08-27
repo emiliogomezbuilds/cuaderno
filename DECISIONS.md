@@ -323,14 +323,63 @@ on `/applicant` now releases the packet, visible inline on `/lender`.
   separate row. 13 checks, all passing. Full regression suite (RLS,
   Shadow Clause, consent gate) reruns clean.
 
-**Tomorrow's first move:** Feature 8 — revoke access. Applicant can
-revoke a previously consented grant; any lender UI polling that grant
-must stop showing data after revoke. This needs a new status (or a
-separate `revoked_at` column) on `pull_requests`/`pull_events` — the
-mockup's "Puedes revocar cualquier acceso cuando quieras, desde tu
-historial de solicitudes" line was deliberately left out of Feature 6's
-consent card since revoke didn't exist yet; this is where it becomes
-true. The `/lender` packet display (`packetByRequestId` in
-`src/app/lender/page.tsx`) will need to stop rendering a packet once its
-request is revoked — check live status on every read, not just at
-release time.
+## 2026-08-27 — Feature 8: revoke access
+
+Built and deployed. This is the last feature in BUILD_PROMPT.md's build
+order — all 8 are now live at https://cuaderno-beta.vercel.app.
+
+- `pull_requests.revoked_at` (nullable timestamptz) is a separate event
+  layered on top of `status='consented'`, not a status overwrite — the
+  record keeps saying "this was consented, then later revoked" rather
+  than losing that history. Matches the mockup's "Puedes revocar
+  cualquier acceso cuando quieras, desde tu historial de solicitudes"
+  line, which Feature 6 deliberately left out since revoke didn't exist
+  yet.
+- New `pull_requests` UPDATE policy: applicant can revoke their own
+  consented, not-yet-revoked grant; `WITH CHECK` only allows the result
+  to stay `status='consented'` with `revoked_at` now set — this policy
+  can't be used to change status itself, only to revoke it.
+- **"Stop showing data after revoke" is enforced at the RLS layer, not
+  in application code**: tightened the lender's `pull_events` SELECT
+  policy to also require `pr.revoked_at is null`. Consequence: no
+  page-level filtering logic was needed in `/lender` at all —
+  `packetByRequestId` already comes from a query gated by that policy,
+  so a revoked request's packet just stops appearing in the query
+  result. Only had to update the status *badge* separately (to show
+  "revoked" instead of a stale "consented"), since the badge reads
+  `pull_requests.status` directly, which intentionally stays
+  `consented` (see the `revoked_at`-as-separate-event choice above).
+  Worth remembering as a pattern: when a feature's shape is "make a
+  previously-visible thing become invisible," check whether tightening
+  an existing RLS policy accomplishes it for free before writing new
+  page logic. The applicant's own SELECT policy is untouched — they keep
+  seeing their full history (revoked or not) for transparency, and the
+  `pull_events` row itself is never deleted, just hidden from the lender.
+- `scripts/test-revoke.mts` (`npm run test:revoke`) automates the
+  acceptance test against the real functions: lender reads the packet
+  before revoke, can't after; the underlying row still exists (visible
+  to the applicant and to admin, just not the lender); cross-applicant
+  revoke is blocked; re-revoking or revoking a never-consented (denied)
+  request is blocked. 10 checks, all passing. Full regression suite
+  (RLS, Shadow Clause, consent gate, release) reruns clean.
+
+**Next moves, from PACKET.md §10 (Test plan) and the Security floor
+checklist — not yet done, worth doing before calling the MVP finished:**
+- Test 5, "mechanical pass": walk the full deployed flow end-to-end
+  looking for a real bug, fix it, redeploy. Automated coverage across all
+  8 features is thorough now (RLS, Shadow Clause, consent gate, release,
+  revoke — dozens of checks), but nothing has driven the *whole* flow
+  (signup → evidence → request → consent → release → revoke) as one
+  continuous human session yet.
+- Test 6, "persona test (Doña Mari)": fresh chat, walk her through the
+  consent screen via screenshots (not live testing), log every
+  hesitation a low-literacy, app-distrustful user would have, fix the
+  worst one.
+- Security floor checklist (BUILD_PROMPT.md, "check before every
+  deploy"): items 1-3 (no secrets in repo, auth-gated pages, RLS on
+  every table) have been true since early features; item 4 (every form
+  validates input before it touches the DB or the LLM prompt) is true
+  per-feature but has never been audited as one pass across the whole
+  app; item 5 (every seeded/demo fact is simulated and labeled) is true
+  for the applicant-side "SIMULATED DATA" badge and the lender-side
+  packet badge, not yet re-checked since Feature 8's UI changes.
