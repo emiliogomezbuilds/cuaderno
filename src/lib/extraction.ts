@@ -12,7 +12,7 @@ export type ExtractedFact = {
   counterparty_masked: string | null;
 };
 
-const MODEL = "gemini-2.5-flash-lite";
+const MODEL = "gemini-3.5-flash-lite";
 
 const RESPONSE_SCHEMA = {
   type: Type.OBJECT,
